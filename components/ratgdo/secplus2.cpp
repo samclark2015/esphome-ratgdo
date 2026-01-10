@@ -455,28 +455,29 @@ namespace ratgdo {
 
         bool Secplus2::transmit_packet()
         {
-            auto now = micros();
-
-            while (micros() - now < 1300) {
-                if (this->rx_pin_->digital_read()) {
-                    if (!this->flags_.transmit_pending) {
-                        this->flags_.transmit_pending = true;
-                        this->transmit_pending_start_ = millis();
-                        ESP_LOGD(TAG, "Collision detected, waiting to send packet");
-                    } else {
-                        if (millis() - this->transmit_pending_start_ < 5000) {
-                            ESP_LOGD(TAG, "Collision detected, waiting to send packet");
-                        } else {
-                            this->transmit_pending_start_ = 0; // to indicate GDO not connected state
-                        }
-                    }
-                    return false;
-                }
-                delayMicroseconds(100);
-            }
+            // auto now = micros();
+            // bool pinState;
+            // while (micros() - now < 1300) {
+            //     if ((pinState = this->rx_pin_->digital_read())) {
+            //         if (!this->flags_.transmit_pending) {
+            //             this->flags_.transmit_pending = true;
+            //             this->transmit_pending_start_ = millis();
+            //             ESP_LOGD(TAG, "Collision detected, waiting to send packet; state = %d", pinState);
+            //         } else {
+            //             if (millis() - this->transmit_pending_start_ < 5000) {
+            //                 ESP_LOGD(TAG, "Collision detected, waiting to send packet; state = %d", pinState);
+            //             } else {
+            //                 this->transmit_pending_start_ = 0; // to indicate GDO not connected state
+            //             }
+            //         }
+            //         return false;
+            //     }
+            //     delayMicroseconds(100);
+            // }
 
             this->print_packet(LOG_STR("Sending packet"), this->tx_packet_);
 
+            this->sw_serial_.setInvert(true);
             // indicate the start of a frame by pulling the 12V line low for at leat 1 byte followed by
             // one STOP bit, which indicates to the receiving end that the start of the message follows
             // The output pin is controlling a transistor, so the logic is inverted
@@ -486,6 +487,7 @@ namespace ratgdo {
             delayMicroseconds(130);
 
             this->sw_serial_.write(this->tx_packet_, PACKET_LENGTH);
+            this->sw_serial_.setInvert(false);
 
             this->flags_.transmit_pending = false;
             this->transmit_pending_start_ = 0;

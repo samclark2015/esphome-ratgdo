@@ -10,6 +10,7 @@
 #include "observable.h"
 #include "protocol.h"
 #include "ratgdo_state.h"
+#include "serial.h"
 
 namespace esphome {
 
@@ -153,7 +154,7 @@ namespace ratgdo {
             single_observable<uint32_t> rolling_code_counter_ { 0 };
             OnceCallbacks<void()> on_command_sent_;
             Traits traits_;
-            SoftwareSerial sw_serial_;
+            serial::GDOSerial sw_serial_;
 
             // 19-byte array
             WirePacket tx_packet_;
