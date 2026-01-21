@@ -348,7 +348,11 @@ namespace ratgdo {
             uint64_t fixed = 0;
             uint32_t data = 0;
 
-            decode_wireline(packet, &rolling, &fixed, &data);
+            int err = decode_wireline(packet, &rolling, &fixed, &data);
+            if (err < 0) {
+                ESP_LOGW(TAG, "Decode failed (parity error or invalid frame)");
+                return {};
+            }
 
             uint16_t cmd = ((fixed >> 24) & 0xf00) | (data & 0xff);
             data &= ~0xf000; // clear parity nibble
@@ -455,25 +459,21 @@ namespace ratgdo {
 
         bool Secplus2::transmit_packet()
         {
-            // auto now = micros();
-            // bool pinState;
-            // while (micros() - now < 1300) {
-            //     if ((pinState = this->rx_pin_->digital_read())) {
-            //         if (!this->flags_.transmit_pending) {
-            //             this->flags_.transmit_pending = true;
-            //             this->transmit_pending_start_ = millis();
-            //             ESP_LOGD(TAG, "Collision detected, waiting to send packet; state = %d", pinState);
-            //         } else {
-            //             if (millis() - this->transmit_pending_start_ < 5000) {
-            //                 ESP_LOGD(TAG, "Collision detected, waiting to send packet; state = %d", pinState);
-            //             } else {
-            //                 this->transmit_pending_start_ = 0; // to indicate GDO not connected state
-            //             }
-            //         }
-            //         return false;
-            //     }
-            //     delayMicroseconds(100);
-            // }
+            auto now = micros();
+
+            while (micros() - now < 1300) {
+                if (this->rx_pin_->digital_read()) {
+                    if (!this->flags_.transmit_pending) {
+                        this->flags_.transmit_pending = true;
+                        this->transmit_pending_start_ = millis();
+                        ESP_LOGD(TAG, "Collision detected, waiting to send packet");
+                    } else if (millis() - this->transmit_pending_start_ >= 5000) {
+                        this->transmit_pending_start_ = 0; // to indicate GDO not connected state
+                    }
+                    return false;
+                }
+                delayMicroseconds(100);
+            }
 
             this->print_packet(LOG_STR("Sending packet"), this->tx_packet_);
 
